@@ -239,8 +239,15 @@ module DE_STAGE(
   assign rd_DE  = inst_DE[11:7]; 
 
   // Read register file
-  assign rs1_val_DE = reg_file[rs1_DE];
-  assign rs2_val_DE = reg_file[rs2_DE];
+   // if x27 (op3), give result to alu directly
+  // if x26 (csr_alu_out), give alu status 
+  // otherwise read from reg file 
+  assign rs1_val_DE = (rs1_DE == 5'd27) ? OP3_FU :
+                      (rs1_DE == 5'd26) ? {29'b0, CSR_ALU_OUT} : 
+                      reg_file[rs1_DE];
+  assign rs2_val_DE = (rs2_DE == 5'd27) ? OP3_FU :
+                      (rs2_DE == 5'd26) ? {29'b0, CSR_ALU_OUT} : 
+                      reg_file[rs2_DE];
 
   // decode instruction info
   assign is_br_DE  = ((op_I_DE == `BEQ_I) || (op_I_DE == `BNE_I) || (op_I_DE == `BLT_I) || (op_I_DE == `BGE_I) || (op_I_DE == `BLTU_I) || (op_I_DE == `BGEU_I)) ? 1 : 0;
@@ -391,5 +398,31 @@ module DE_STAGE(
   //fetch status update from FU stage; 
   //Recommended states transition: load aluop --> load op1 --> load op2 --> alu processing --> store results to memory
   //Need to handle the stalls from part2 
+  
+  // unpack signals from fu stage
+  wire [`ALUDATABITS-1:0] OP3_FU;
+  wire [`ALUCSROUTBITS-1:0] CSR_ALU_OUT;
+  assign {OP3_FU, CSR_ALU_OUT} = from_FU_to_DE;
+
+  // pack fu inputs 
+  wire [`ALUDATABITS-1:0] OP1_DE;
+  wire [`ALUDATABITS-1:0] OP2_DE;
+  wire [`ALUOPBITS-1:0] ALUOP_DE;
+  wire [2:0] CSR_ALU_IN; 
+
+  assign OP1_DE = reg_file[30];
+  assign OP2_DE = reg_file[31];
+  assign ALUOP_DE = reg_file[29][3:0]; // lower 4 bits of x29
+
+  // signals op1 fed to alu is stable
+  assign CSR_ALU_IN[1] = (wr_reg_WB && (wregno_WB == 5'd30));
+
+  // signals op2 fed is stable
+  assign CSR_ALU_IN[2] = (wr_reg_WB && (wregno_WB == 5'd31));
+
+  // results can be overwritten by alu
+  assign CSR_ALU_IN[0] = ((rs1_DE == 5'd27) || (rs2_DE == 5'd27));
+  // feed back into fu 
+  assign from_DE_to_FU = {OP1_DE, OP2_DE, ALUOP_DE, CSR_ALU_IN};
 
 endmodule

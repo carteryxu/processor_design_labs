@@ -196,15 +196,10 @@ end
 always @(*) begin 
   case (type_immediate_DE )  
   `I_immediate: sxt_imm_DE = {{21{inst_DE[31]}}, inst_DE[30:25], inst_DE[24:21], inst_DE[20]};
-   `B_immediate: sxt_imm_DE = {{20{inst_DE[31]}}, inst_DE[7], inst_DE[30:25], inst_DE[11:8], 1'b0};
-    /*
-  `S_immediate: 
-     sxt_imm_DE =  ... 
-   `U_immediate: 
-     sxt_imm_DE = ... 
-   `J_immediate: 
-    sxt_imm_DE = ... 
-    */ 
+  `B_immediate: sxt_imm_DE = {{20{inst_DE[31]}}, inst_DE[7], inst_DE[30:25], inst_DE[11:8], 1'b0};
+  `S_immediate: sxt_imm_DE = {{21{inst_DE[31]}}, inst_DE[30:25], inst_DE[11:8], inst_DE[7]};
+  `U_immediate: sxt_imm_DE = {inst_DE[31:12], 12'b0};
+  `J_immediate: sxt_imm_DE = {{12{inst_DE[31]}}, inst_DE[19:12], inst_DE[20], inst_DE[30:25], inst_DE[24:21], 1'b0};
    default:
     sxt_imm_DE = 32'b0; 
   endcase  
@@ -219,6 +214,8 @@ end
   wire [`DBITS-1:0] rs2_val_DE;
 
   wire is_br_DE;    // is conditional branch instr
+  wire is_jal_DE;
+  wire is_jalr_DE;
   wire wr_reg_DE;   // is writing back to register file
 
   // Decode instruction registers
@@ -231,10 +228,42 @@ end
   assign rs2_val_DE = regs[rs2_DE];
 
 
-  assign is_br_DE  = ((op_I_DE == `BEQ_I) || (op_I_DE == `BNE_I))? 1 : 0;
+  assign is_br_DE  = ((op_I_DE == `BEQ_I) || 
+                      (op_I_DE == `BNE_I) || 
+                      (op_I_DE == `BLT_I) || 
+                      (op_I_DE == `BGE_I) ||
+                      (op_I_DE == `BLTU_I) || 
+                      (op_I_DE == `BGEU_I)) ? 1 : 0;
+  
+  assign is_jal_DE = (op_I_DE == `JAL_I) ? 1 : 0;
+  assign is_jalr_DE = (op_I_DE == `JALR_I) ? 1 : 0;
+
   assign wr_reg_DE = ((op_I_DE == `ADD_I) || 
+                      (op_I_DE == `SUB_I) || 
+                      (op_I_DE == `AND_I) || 
+                      (op_I_DE == `OR_I) || 
+                      (op_I_DE == `XOR_I) || 
+                      (op_I_DE == `SLT_I) || 
+                      (op_I_DE == `SLTU_I) || 
+                      (op_I_DE == `SRA_I) || 
+                      (op_I_DE == `SRL_I) || 
+                      (op_I_DE == `SLL_I) || 
+                      (op_I_DE == `MUL_I) || 
                       (op_I_DE == `ADDI_I) || 
-                      (op_I_DE == `ANDI_I)) ? ((rd_DE != 0) ? 1 : 0): 0; 
+                      (op_I_DE == `ANDI_I) || 
+                      (op_I_DE == `ORI_I) || 
+                      (op_I_DE == `XORI_I) || 
+                      (op_I_DE == `SLTI_I) || 
+                      (op_I_DE == `SLTIU_I) ||
+                      (op_I_DE == `SRAI_I) || 
+                      (op_I_DE == `SRLI_I) || 
+                      (op_I_DE == `SLLI_I) || 
+                      (op_I_DE == `LUI_I) || 
+                      (op_I_DE == `AUIPC_I) || 
+                      (op_I_DE == `LW_I) || 
+                      (op_I_DE == `JAL_I) || 
+                      (op_I_DE == `JALR_I) || 
+                      (op_I_DE == `CSRR_I)) ? ((rd_DE != 0) ? 1 : 0) : 0; 
 
  /* this signal is passed from WB stage */ 
   wire wr_reg_WB; // is this instruction writing into a register file? 
@@ -332,6 +361,8 @@ end
                                   rs2_val_DE,    
                                   sxt_imm_DE,
                                   is_br_DE,
+                                  is_jal_DE,
+                                  is_jalr_DE,
                                   wr_reg_DE,
                                   rd_DE
                                   }; 

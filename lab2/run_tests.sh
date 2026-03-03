@@ -96,17 +96,17 @@ case $part in
 	;;
 	all)
 		echo RUNNING ALL$'\n'
-		for filename in $PWD/test/part*/*.vmh;do
+		for filename in $PWD/test/part*/*.mem;do
 			echo $'\n'TESTING: $filename >> all_tests.log
 			IDMEMINITFILE=$filename make tests>> all_tests.log
 		done
 		grep -E 'TESTING|Failed|Passed' all_tests.log>all_results.log
 		echo "Total number of tests:"
-		grep -i testing part3_tests.log | wc -l
+		grep -i testing all_tests.log | wc -l
 		echo "Number of passed tests:"
-		grep -i passed part3_tests.log | wc -l
+		grep -i passed all_tests.log | wc -l
 		echo "Number of failed tests:"
-		grep -i failed part3_tests.log | wc -l
+		grep -i failed all_tests.log | wc -l
 	;;
 	*)
 		echo INVALID PART. Use part1, part2, part3, part4 or all as command line argument

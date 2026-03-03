@@ -29,8 +29,8 @@ module DE_STAGE(
   wire [`DBITS-1:0] pcplus_DE; 
   wire [`DBITS-1:0] inst_count_DE; 
   wire[`DE_latch_WIDTH-1:0] DE_latch_contents; 
-
- 
+  wire [7:0] pht_index_DE;
+  wire[1:0] pht_counter_DE;
 
 // extracting a part of opcode 
   wire [2:0] F3_DE; 
@@ -316,19 +316,19 @@ end
   assign has_data_hazards = (use_rs1_DE && in_use_regs[rs1_DE]) 
                          || (use_rs2_DE && in_use_regs[rs2_DE]);
 
-  assign pipeline_stall_DE = has_data_hazards || br_mispred_AGEX;
+  assign pipeline_stall_DE = has_data_hazards;
 
 
   always @(posedge clk) begin
     if (reset) begin
       in_use_regs <= '0;
     end else begin
-      if (~pipeline_stall_DE && wr_reg_DE) begin
-        in_use_regs[rd_DE] <= 1;
-      end 
       if (wr_reg_WB) begin
         in_use_regs[wregno_WB] <= 0;
       end
+      if (~pipeline_stall_DE && wr_reg_DE && !br_mispred_AGEX) begin // don't lock if inst is being flushed
+        in_use_regs[rd_DE] <= 1;
+      end 
     end
   end
 
@@ -338,7 +338,9 @@ end
             inst_DE,
             PC_DE, 
             pcplus_DE,
-            inst_count_DE 
+            inst_count_DE,
+            pht_index_DE,
+            pht_counter_DE
             }  = from_FE_latch;  // based on the contents of the latch, you can decode the content 
 
 
@@ -352,6 +354,8 @@ end
                                   pcplus_DE,
                                   op_I_DE,
                                   inst_count_DE,
+                                  pht_index_DE,
+                                  pht_counter_DE,
                                   // more signals might need
                                   rs1_val_DE,
                                   rs2_val_DE,    
@@ -414,10 +418,12 @@ always @ (posedge clk) begin // you need to expand this always block
       DE_latch <= {`DE_latch_WIDTH{1'b0}};
       end
      else begin  
-      if (pipeline_stall_DE) 
-        DE_latch <= {`DE_latch_WIDTH{1'b0}};
+      if (br_mispred_AGEX || has_data_hazards)
+        DE_latch <= {`DE_latch_WIDTH{1'b0}}; // flush on mispred
+      // else if (pipeline_stall_DE) 
+      //   DE_latch <= DE_latch; // stall, keep the same info
       else
-          DE_latch <= DE_latch_contents;
+          DE_latch <= DE_latch_contents; // continue
      end 
   end
 

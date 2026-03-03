@@ -1,6 +1,7 @@
 // DESCRIPTION:  simulation of pipeline 
 //======================================================================
 #include <iostream>
+#include <iomanip>
 
 // Include common routines
 #include <verilated.h>
@@ -95,9 +96,19 @@ int main(int argc, char** argv, char** env) {
     std::cout << "Total instructions=" << std::dec << inst_count_WB << ", cycles=" << (timestamp_WB / 2) << ", IPC=" << ((inst_count_WB * 2.0f) / timestamp_WB) << std::endl; 
 #endif
 
+    uint32_t total_branches = (uint32_t)dut->pipeline->my_AGEX_stage->total_branches;
+    uint32_t correct_branches = (uint32_t)dut->pipeline->my_AGEX_stage->correct_predictions;
+
+    if (total_branches > 0) {
+        double accuracy = (correct_branches * 100.0) / total_branches;
+        std::cout << "Accuracy=" << std::fixed << std::setprecision(0) << accuracy << "%" << std::endl;
+        // std::cout << "Total Branches=" << total_branches << std::endl;
+    }
+
+
     int exitcode = (int)dut->pipeline->my_WB_stage->last_WB_value[3];
 
-    // Final model cleanup
+    // Final model cleanupb
     dut->final();
 
 #ifdef VCD_OUTPUT
